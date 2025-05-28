@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: mblock
+Version: 0.0.2
+Summary: library for mblock electronic modules
+Home-page: https://makeblock.com
+Author: makeblock
+Author-email: flashindream@gmail.com
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Dist: makeblock
+
+UNKNOWN
+
+
