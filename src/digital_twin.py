@@ -20,6 +20,94 @@ class DigitalTwinSimulator:
         self.car_pose = None
         self.home_pose = None
         self.dropoff_pose = None
+        self.simulation_env = None
+        self.car_marker = None
+        self.home_marker = None
+        self.dropoff_marker = None
+
+    def initialize_simulation(self):
+        """Initialize the simulation environment cleanly"""
+        plt.ion()  # Enable interactive mode
+        
+        # Use Robotics Toolbox to create the environment
+        self.simulation_env = self.robot.plot(
+            self.q_current,
+            backend='pyplot',
+            block=False,
+            jointaxes=True,
+            eeframe=True,
+            shadow=False
+        )
+        
+        # Configure the plot
+        ax = self.simulation_env.ax
+        ax.set_xlim(SIMULATION_PLOT_LIMITS['x'])
+        ax.set_ylim(SIMULATION_PLOT_LIMITS['y'])
+        ax.set_zlim(SIMULATION_PLOT_LIMITS['z'])
+        ax.set_title("Simulação do Braço Robótico")
+        
+        # Initialize marker plots with empty data
+        self.car_marker, = ax.plot([], [], [], 'ro', label="Carro", markersize=7)
+        self.home_marker, = ax.plot([], [], [], 'g^', label="Home", markersize=7)
+        self.dropoff_marker, = ax.plot([], [], [], 'm^', label="Drop-off", markersize=7)
+        ax.legend()
+        
+        plt.show(block=False)
+        return self.simulation_env
+
+    def update_simulation_display(self, joint_angles_rad):
+        """Update simulation display cleanly without blocking"""
+        if self.simulation_env is not None:
+            try:
+                # First update the robot's joint configuration
+                self.simulation_env.robots[0].robot.q = joint_angles_rad
+                
+                # Then call step to update the display
+                self.simulation_env.step(dt=0.01)
+                
+                # Always update markers
+                self.update_simulation_markers()
+                
+                # Brief pause for smooth animation
+                plt.pause(0.001)
+            except Exception as e:
+                print(f"Warning: Simulation update error: {e}")
+
+    def update_simulation_markers(self):
+        """Updates the positions of the marker plots in the simulation."""
+        if self.car_marker is None or self.home_marker is None or self.dropoff_marker is None:
+            return
+
+        # Update car marker
+        if self.car_pose is not None and self.home_pose is not None:
+            car_pos = self.car_pose.t
+            self.car_marker.set_data([car_pos[0]], [car_pos[1]])
+            self.car_marker.set_3d_properties([car_pos[2]])
+        else:
+            self.car_marker.set_data([], [])
+            self.car_marker.set_3d_properties([])
+
+        # Update home marker
+        if self.home_pose is not None:
+            home_pos = self.home_pose.t
+            self.home_marker.set_data([home_pos[0]], [home_pos[1]])
+            self.home_marker.set_3d_properties([home_pos[2]])
+        else:
+            self.home_marker.set_data([], [])
+            self.home_marker.set_3d_properties([])
+
+        # Update dropoff marker
+        if self.dropoff_pose is not None:
+            dropoff_pos = self.dropoff_pose.t
+            self.dropoff_marker.set_data([dropoff_pos[0]], [dropoff_pos[1]])
+            self.dropoff_marker.set_3d_properties([dropoff_pos[2]])
+        else:
+            self.dropoff_marker.set_data([], [])
+            self.dropoff_marker.set_3d_properties([])
+
+        # Force update the display
+        self.simulation_env.ax.figure.canvas.draw()
+        self.simulation_env.ax.figure.canvas.flush_events()
 
     def update_from_vision(self, transforms):
         """Atualiza as poses baseado nos marcadores detectados"""
@@ -35,39 +123,20 @@ class DigitalTwinSimulator:
             dropoff_pos = transforms['dropoff'][:3, 3]
             self.dropoff_pose = SE3(dropoff_pos[0], dropoff_pos[1], dropoff_pos[2])
 
+        # Update markers immediately after receiving new transforms
+        if self.simulation_env is not None:
+            self.update_simulation_markers()
+
     def update_arm(self, q):
         """Atualiza a configuração do braço"""
         self.q_current = q
         print("🔧 Braço atualizado para:", np.round(q, 3))
+        self.update_simulation_display(q)
 
     def show(self):
         """Mostra a simulação do sistema completo"""
-        fig = plt.figure()
-        self.robot.plot(self.q_current, backend="pyplot", block=False, fig=fig)
-        ax = plt.gca()
-
-        # Desenhar o carro
-        if self.car_pose is not None:
-            car_pos = self.car_pose.t
-            ax.plot([car_pos[0]], [car_pos[1]], 'ro', label="Carro")
-            ax.text(car_pos[0], car_pos[1], car_pos[2] + 0.02, 'Carro', color='red')
-
-        # Desenhar pontos de referência
-        if self.home_pose is not None:
-            home_pos = self.home_pose.t
-            ax.plot([home_pos[0]], [home_pos[1]], 'g^', label="Home")
-            ax.text(home_pos[0], home_pos[1], home_pos[2] + 0.02, 'Home', color='green')
-
-        if self.dropoff_pose is not None:
-            dropoff_pos = self.dropoff_pose.t
-            ax.plot([dropoff_pos[0]], [dropoff_pos[1]], 'm^', label="Drop-off")
-            ax.text(dropoff_pos[0], dropoff_pos[1], dropoff_pos[2] + 0.02, 'Drop-off', color='magenta')
-
-        ax.set_xlim(SIMULATION_PLOT_LIMITS['x'])
-        ax.set_ylim(SIMULATION_PLOT_LIMITS['y'])
-        ax.set_zlim(SIMULATION_PLOT_LIMITS['z'])
-        plt.legend()
-        plt.title("Gémeo Digital: Braço Robótico + Sistema de Visão")
+        if self.simulation_env is None:
+            self.initialize_simulation()
         plt.show(block=True)
         time.sleep(0.1)
 
@@ -76,10 +145,39 @@ if __name__ == "__main__":
     sim = DigitalTwinSimulator()
 
     # Atualizar pose do braço e do carro
+    sim.initialize_simulation()
     sim.update_arm(INITIAL_ARM_ANGLES_RAD)
-    sim.update_from_vision({'car': np.array([[1, 0, 0, 0.3], [0, 1, 0, 0.1], [0, 0, 1, 0], [0, 0, 0, 1]])})
-    sim.update_from_vision({'home': np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])})
-    sim.update_from_vision({'dropoff': np.array([[1, 0, 0, 0.2], [0, 1, 0, -0.2], [0, 0, 1, 0], [0, 0, 0, 1]])})
+    
+    # Valores de teste mais realistas para os marcadores (em metros)
+    # Home no centro
+    home_transform = np.array([
+        [1, 0, 0, 0.0],
+        [0, 1, 0, 0.0],
+        [0, 0, 1, 0.0],
+        [0, 0, 0, 1]
+    ])
+    
+    # Carro a 22cm do home em x
+    car_transform = np.array([
+        [1, 0, 0, 0.22],
+        [0, 1, 0, 0.0],
+        [0, 0, 1, 0.0],
+        [0, 0, 0, 1]
+    ])
+    
+    # Dropoff a 20cm em x e -15cm em y
+    dropoff_transform = np.array([
+        [1, 0, 0, 0.20],
+        [0, 1, 0, -0.15],
+        [0, 0, 1, 0.0],
+        [0, 0, 0, 1]
+    ])
+
+    sim.update_from_vision({
+        'home': home_transform,
+        'car': car_transform,
+        'dropoff': dropoff_transform
+    })
 
     # Mostrar simulação
     sim.show()

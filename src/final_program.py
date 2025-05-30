@@ -30,100 +30,12 @@ vision.last_status = "Aguardando"
 vision.last_color = (255, 255, 255)
 
 # Global simulation variables
-simulation_env = None
 current_angles = INITIAL_ARM_ANGLES_RAD
-# ADD: Global marker variables
-car_marker = None
-home_marker = None
-dropoff_marker = None
-
-def initialize_simulation():
-    """Initialize the simulation environment cleanly"""
-    global simulation_env, car_marker, home_marker, dropoff_marker
-    
-    plt.ion()  # Enable interactive mode
-    
-    # Use Robotics Toolbox to create the environment
-    simulation_env = simulator.robot.plot(
-        INITIAL_ARM_ANGLES_RAD,
-        backend='pyplot',
-        block=False,
-        jointaxes=True,
-        eeframe=True,
-        shadow=False
-    )
-    
-    # Configure the plot
-    ax = simulation_env.ax
-    ax.set_xlim(-0.2, 0.5)
-    ax.set_ylim(-0.3, 0.3)
-    ax.set_zlim(0, 0.4)
-    ax.set_title("Simulação do Braço Robótico")
-    
-    # ADD: Initialize marker plots with empty data
-    car_marker, = ax.plot([], [], [], 'ro', label="Carro")
-    home_marker, = ax.plot([], [], [], 'g^', label="Home")
-    dropoff_marker, = ax.plot([], [], [], 'm^', label="Drop-off")
-    ax.legend()
-    
-    plt.show(block=False)
-    return simulation_env
-
-def update_simulation_display(joint_angles_rad):
-    """Update simulation display cleanly without blocking"""
-    global simulation_env
-    
-    if simulation_env is not None:
-        try:
-            # First update the robot's joint configuration
-            simulation_env.robots[0].robot.q = joint_angles_rad
-            
-            # Then call step to update the display
-            simulation_env.step(dt=0.01)
-            
-            # ADD: Update markers if they exist
-            if all(m is not None for m in [car_marker, home_marker, dropoff_marker]):
-                update_simulation_markers(simulation_env.ax, simulator, car_marker, home_marker, dropoff_marker)
-            
-            # Brief pause for smooth animation
-            plt.pause(0.001)
-        except Exception as e:
-            print(f"Warning: Simulation update error: {e}")
-
-# ADD: Your working marker update function
-def update_simulation_markers(ax, simulator, car_marker, home_marker, dropoff_marker):
-    """Updates the positions of the marker plots in the simulation."""
-    if simulator.car_pose is not None and simulator.home_pose is not None:
-        # Calculate car position relative to home
-        car_pos_relative = simulator.home_pose.inv() * simulator.car_pose
-        car_marker.set_data([car_pos_relative.t[0]], [car_pos_relative.t[1]])
-        car_marker.set_3d_properties([car_pos_relative.t[2]])
-    else:
-        car_marker.set_data([], [])
-        car_marker.set_3d_properties([])
-
-    # Home marker is always at (0,0,0) in this relative frame
-    if simulator.home_pose is not None:
-        home_marker.set_data([0], [0])
-        home_marker.set_3d_properties([0])
-    else:
-        home_marker.set_data([], [])
-        home_marker.set_3d_properties([])
-
-    if simulator.dropoff_pose is not None and simulator.home_pose is not None:
-        # Calculate dropoff position relative to home
-        dropoff_pos_relative = simulator.home_pose.inv() * simulator.dropoff_pose
-        dropoff_marker.set_data([dropoff_pos_relative.t[0]], [dropoff_pos_relative.t[1]])
-        dropoff_marker.set_3d_properties([dropoff_pos_relative.t[2]])
-    else:
-        dropoff_marker.set_data([], [])
-        dropoff_marker.set_3d_properties([])
 
 def send_to_real_robot(joint_angles_rad):
     """Send angles to robot - now with Arduino support for base rotation"""
     if SIMULATION_MODE:
         simulator.update_arm(joint_angles_rad)
-        update_simulation_display(joint_angles_rad)
         
         # If Arduino is connected, send base angle
         if hasattr(send_to_real_robot, 'arduino_controller') and send_to_real_robot.arduino_controller:
@@ -349,7 +261,7 @@ def move_through_safe_path(target_pos_cm, current_angles):
         return False, current_angles
 
 def main():
-    global current_angles, simulation_env
+    global current_angles
     
     print("==============================")
     print(" SISTEMA DE PICK AND PLACE")
@@ -372,11 +284,10 @@ def main():
 
     # Initialize simulation
     try:
-        simulation_env = initialize_simulation()
+        simulator.initialize_simulation()
         print("✅ Simulação inicializada com sucesso")
     except Exception as e:
         print(f"⚠️ Erro na inicialização da simulação: {e}")
-        simulation_env = None
     
     # Configure camera window
     cv2.namedWindow("Vision System", cv2.WINDOW_NORMAL)
@@ -497,8 +408,7 @@ def main():
             send_to_real_robot.arduino_controller.close()
         cap.release()
         cv2.destroyAllWindows()
-        if simulation_env:
-            plt.close('all')
+        plt.close('all')
 
 if __name__ == "__main__":
     try:
