@@ -1,9 +1,10 @@
 import time
 import numpy as np
 import serial
+from config import (ARDUINO_PORT, ARDUINO_BAUD_RATE, INITIAL_ARM_ANGLES_RAD)
 
 class ArduinoArmControllerSerial:
-    def __init__(self, port='COM9', baud_rate=57600):
+    def __init__(self, port=ARDUINO_PORT, baud_rate=ARDUINO_BAUD_RATE):
         """
         Initialize serial communication with Arduino for base rotation control
         Args:
@@ -19,12 +20,12 @@ class ArduinoArmControllerSerial:
             time.sleep(2)  # Wait for the serial connection to initialize
             print("✅ Serial connection to Arduino successful")
 
-            # Set initial base angle (matching final_program.py's initial value)
+            # Set initial base angle (using config values)
             self.current_angles_deg = {
-                'base': np.degrees(0.0),  # Convert from radians to degrees
-                'shoulder': np.degrees(45),  # These won't be sent to Arduino
-                'elbow': np.degrees(-45),   # These won't be sent to Arduino
-                'gripper': 0                # These won't be sent to Arduino
+                'base': np.degrees(INITIAL_ARM_ANGLES_RAD[0]),
+                'shoulder': np.degrees(INITIAL_ARM_ANGLES_RAD[1]),
+                'elbow': np.degrees(INITIAL_ARM_ANGLES_RAD[2]),
+                'gripper': 0
             }
             
             # Send initial base position to Arduino

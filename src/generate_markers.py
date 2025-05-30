@@ -1,6 +1,7 @@
 import cv2
 import cv2.aruco as aruco
 import os
+from config import ARUCO_ID_HOME, ARUCO_ID_CAR, ARUCO_ID_DROPOFF
 
 def generate_aruco_markers(ids, dictionary=aruco.DICT_4X4_50, marker_size=200, output_dir="markers"):
     # Cria a pasta de saida se nao existir
@@ -19,4 +20,4 @@ def generate_aruco_markers(ids, dictionary=aruco.DICT_4X4_50, marker_size=200, o
 
 if __name__ == "__main__":
     # Chama a função que posteriormente cria os aruco markers de acordo com os ids fornecidos
-    generate_aruco_markers(ids=[0, 1, 2])
+    generate_aruco_markers(ids=[ARUCO_ID_HOME, ARUCO_ID_CAR, ARUCO_ID_DROPOFF])

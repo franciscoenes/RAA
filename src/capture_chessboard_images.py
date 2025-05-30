@@ -1,7 +1,8 @@
 import cv2
 import os
+from config import CAMERA_INDEX
 
-cap = cv2.VideoCapture(1)  # Abre a camera 
+cap = cv2.VideoCapture(CAMERA_INDEX)  # Abre a camera 
 save_dir = "calib_images"  # Pasta para guardar as imagens
 os.makedirs(save_dir, exist_ok=True)  # Cria a pasta se nao existir
 

@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from config import TRAJECTORY_DT, INITIAL_ARM_ANGLES_RAD
 
 class TrajectoryPlanner:
-    def __init__(self, dt=0.01):
+    def __init__(self, dt=TRAJECTORY_DT):
         """Inicializa com o periodo de amostragem dt (em segundos)"""
         self.dt = dt
 
@@ -61,10 +62,10 @@ class TrajectoryPlanner:
 
 
 if __name__ == "__main__":
-    planner = TrajectoryPlanner(dt=0.01)
+    planner = TrajectoryPlanner()
 
     # Exemplo para 3 juntas
-    q0 = [0.0, 0.0, 0.0]
+    q0 = INITIAL_ARM_ANGLES_RAD
     qf = [np.pi/4, np.pi/6, -np.pi/6]
     v0 = [0.0, 0.0, 0.0]
     vf = [0.0, 0.0, 0.0]

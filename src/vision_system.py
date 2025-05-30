@@ -1,9 +1,12 @@
 import cv2
 import cv2.aruco as aruco
 import numpy as np
+from config import (MARKER_LENGTH_METERS, ARUCO_ID_HOME, ARUCO_ID_CAR, 
+                   ARUCO_ID_DROPOFF, HOME_MIN_THRESHOLD, HOME_MAX_THRESHOLD,
+                   CAMERA_INDEX, CAMERA_PARAMS_FILE, STATUS_COLORS)
 
 class VisionSystem:
-    def __init__(self, camera_params_path, marker_length):
+    def __init__(self, camera_params_path=CAMERA_PARAMS_FILE, marker_length=MARKER_LENGTH_METERS):
         self.marker_length = marker_length  # em metros
         self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
         self.parameters = aruco.DetectorParameters()
@@ -13,13 +16,13 @@ class VisionSystem:
         self.K = params['K']
         self.D = params['D']
 
-        # IDs atribuídos (ajustar conforme preferível)
-        self.ID_HOME = 0     # marcador que define o ponto de origem
-        self.ID_CAR = 1      # marcador que define a posição do carro
-        self.ID_DROPOFF = 2  # marcador que define o ponto de entrega
+        # IDs atribuídos (usando configurações globais)
+        self.ID_HOME = ARUCO_ID_HOME
+        self.ID_CAR = ARUCO_ID_CAR
+        self.ID_DROPOFF = ARUCO_ID_DROPOFF
 
-        self.HOME_MIN_THRESHOLD = 0.21  # 21cm minimum (increased from 15cm)
-        self.HOME_MAX_THRESHOLD = 0.22  # 22cm maximum (increased from 17cm)
+        self.HOME_MIN_THRESHOLD = HOME_MIN_THRESHOLD
+        self.HOME_MAX_THRESHOLD = HOME_MAX_THRESHOLD
 
     def detect_markers(self, frame):
         corners, ids, _ = aruco.detectMarkers(frame, self.aruco_dict, parameters=self.parameters)
@@ -111,10 +114,10 @@ class VisionSystem:
                 # Get position from transformation matrix
                 position = self.last_transforms[marker_name][:3, 3]
                 status = f"Detectado - Pos [x,y,z]: [{position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f}]m"
-                color = (0, 255, 0)
+                color = STATUS_COLORS['success']
             else:
                 status = "Não detectado"
-                color = (0, 0, 255)
+                color = STATUS_COLORS['error']
             
             cv2.putText(frame, f"{marker_name}: {status}", (10, y_pos),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
@@ -130,11 +133,11 @@ class VisionSystem:
             # Add range information
             cv2.putText(frame,
                        f"Faixa aceitável: {self.HOME_MIN_THRESHOLD*100:.1f}cm - {self.HOME_MAX_THRESHOLD*100:.1f}cm",
-                       (10, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                       (10, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.5, STATUS_COLORS['neutral'], 1, cv2.LINE_AA)
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(0)  # Ajustar índice conforme a câmara correta
-    vision = VisionSystem("camera_params.npz", marker_length=0.097)
+    cap = cv2.VideoCapture(CAMERA_INDEX)
+    vision = VisionSystem()  # Using default config values
 
     while True:
         ret, frame = cap.read()

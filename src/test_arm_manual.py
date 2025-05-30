@@ -4,16 +4,20 @@ from arm_kinematics import RobotArmRRR
 from trajectory_planner import TrajectoryPlanner
 from digital_twin import DigitalTwinSimulator
 import matplotlib.pyplot as plt
+from config import (
+    LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD,
+    SIMULATION_PLOT_LIMITS, TRAJECTORY_DT
+)
 
 # === Configurações Iniciais ===
 # Inicialização dos objetos principais
-arm = RobotArmRRR(link_lengths=[0.06, 0.10, 0.10])
-planner = TrajectoryPlanner(dt=0.05)
+arm = RobotArmRRR()  # Using default config values
+planner = TrajectoryPlanner()  # Using default config values
 simulator = DigitalTwinSimulator()
 
 # Variáveis globais para a simulação
 simulation_env = None
-current_angles = [0.0, 0.0, 0.0]
+current_angles = INITIAL_ARM_ANGLES_RAD.copy()
 
 def initialize_simulation():
     """Inicializa o ambiente de simulação de forma limpa"""
@@ -33,9 +37,9 @@ def initialize_simulation():
     
     # Configura o gráfico
     ax = simulation_env.ax
-    ax.set_xlim(-0.2, 0.5)
-    ax.set_ylim(-0.3, 0.3)
-    ax.set_zlim(0, 0.4)
+    ax.set_xlim(SIMULATION_PLOT_LIMITS['x'])
+    ax.set_ylim(SIMULATION_PLOT_LIMITS['y'])
+    ax.set_zlim(SIMULATION_PLOT_LIMITS['z'])
     ax.set_title("Simulação do Braço Robótico")
     
     plt.show(block=False)

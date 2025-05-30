@@ -7,41 +7,20 @@ from digital_twin import DigitalTwinSimulator
 from vision_system import VisionSystem
 import matplotlib.pyplot as plt
 from spatialmath import SE3
-from arduino_control import ArduinoArmControllerSerial  # Add Arduino control import
-
-# === Configurações ===
-SIMULATION_MODE = True
-CAMERA_INDEX = 0
-MARKER_SIZE_CM = 9.5
-CAMERA_HEIGHT_CM = 69.0
-VISION_SCALE_FACTOR = 0.01
-
-# Arduino configuration
-ARDUINO_PORT = 'COM9'  # Change this to match your Arduino port
-ARDUINO_BAUD_RATE = 57600
-
-# Initial angles for kinematics (in radians)
-INITIAL_ARM_ANGLES_RAD_KIN = [0.0, np.radians(45), np.radians(-45)]
-
-# Robot arm configuration (in meters)
-LINK_LENGTHS_METERS = [0.10, 0.15, 0.15]
-
-# Workspace limits (in centimeters) - FIXED: Added missing closing brace
-WORKSPACE_LIMITS = {
-    'xy_min': 15.0,
-    'xy_max': 28.0,
-    'z_min': 5.0,
-    'z_max': 25.0
-}
-
-# Define home position (in centimeters) - FIXED: Added missing HOME_POSITION
-HOME_POSITION = np.array([22.0, 0.0, 18.0])
+from arduino_control import ArduinoArmControllerSerial
+from config import (
+    SIMULATION_MODE, CAMERA_INDEX, MARKER_SIZE_CM, CAMERA_HEIGHT_CM,
+    VISION_SCALE_FACTOR, ARDUINO_PORT, ARDUINO_BAUD_RATE,
+    INITIAL_ARM_ANGLES_RAD, LINK_LENGTHS_METERS, WORKSPACE_LIMITS,
+    HOME_POSITION, CAMERA_PARAMS_FILE, SIMULATION_PLOT_LIMITS,
+    TRAJECTORY_DT
+)
 
 # Inicializações
-arm = RobotArmRRR(link_lengths=LINK_LENGTHS_METERS)
-planner = TrajectoryPlanner(dt=0.05)
+arm = RobotArmRRR()  # Using default config values
+planner = TrajectoryPlanner()  # Using default config values
 simulator = DigitalTwinSimulator()
-vision = VisionSystem("camera_params.npz", marker_length=0.097)
+vision = VisionSystem()  # Using default config values
 
 # FIXED: Initialize vision system attributes to prevent AttributeError
 vision.last_transforms = {}
@@ -52,7 +31,7 @@ vision.last_color = (255, 255, 255)
 
 # Global simulation variables
 simulation_env = None
-current_angles = INITIAL_ARM_ANGLES_RAD_KIN
+current_angles = INITIAL_ARM_ANGLES_RAD
 # ADD: Global marker variables
 car_marker = None
 home_marker = None
@@ -66,7 +45,7 @@ def initialize_simulation():
     
     # Use Robotics Toolbox to create the environment
     simulation_env = simulator.robot.plot(
-        INITIAL_ARM_ANGLES_RAD_KIN,
+        INITIAL_ARM_ANGLES_RAD,
         backend='pyplot',
         block=False,
         jointaxes=True,
@@ -409,7 +388,7 @@ def main():
         print("❌ Erro: Não foi possível abrir a câmera")
         return
     
-    current_angles = INITIAL_ARM_ANGLES_RAD_KIN
+    current_angles = INITIAL_ARM_ANGLES_RAD
     state = "WAITING_FOR_CAR"
     
     # Send initial position to simulation and Arduino
@@ -508,7 +487,7 @@ def main():
             elif key == ord('r'):
                 print("\n🔄 Resetando sistema...")
                 state = "WAITING_FOR_CAR"
-                current_angles = INITIAL_ARM_ANGLES_RAD_KIN
+                current_angles = INITIAL_ARM_ANGLES_RAD
                 send_to_real_robot(current_angles)
     
     finally:

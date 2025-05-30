@@ -3,17 +3,20 @@ import matplotlib.pyplot as plt
 from spatialmath import SE3
 from roboticstoolbox import DHRobot, RevoluteDH
 import time
+from config import (LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD, 
+                   SIMULATION_PLOT_LIMITS)
 
 class DigitalTwinSimulator:
     def __init__(self):
-        # Define o braço RRR com parâmetros DH simples (pode ser ajustado)
+        # Define o braço RRR com parâmetros DH usando configurações globais
+        l1, l2, l3 = LINK_LENGTHS_METERS
         self.robot = DHRobot([
-            RevoluteDH(a=0,     d=0.1, alpha=np.pi/2),  # junta base
-            RevoluteDH(a=0.15,  d=0,   alpha=0),        # junta ombro
-            RevoluteDH(a=0.15,  d=0,   alpha=0)         # junta cotovelo
+            RevoluteDH(a=0,  d=l1,  alpha=np.pi/2),  # junta base
+            RevoluteDH(a=l2, d=0,   alpha=0),        # junta ombro
+            RevoluteDH(a=l3, d=0,   alpha=0)         # junta cotovelo
         ], name='Braço RRR')
 
-        self.q_current = [0, 0, 0]
+        self.q_current = INITIAL_ARM_ANGLES_RAD.copy()
         self.car_pose = None
         self.home_pose = None
         self.dropoff_pose = None
@@ -60,9 +63,9 @@ class DigitalTwinSimulator:
             ax.plot([dropoff_pos[0]], [dropoff_pos[1]], 'm^', label="Drop-off")
             ax.text(dropoff_pos[0], dropoff_pos[1], dropoff_pos[2] + 0.02, 'Drop-off', color='magenta')
 
-        ax.set_xlim(-0.2, 0.5)
-        ax.set_ylim(-0.3, 0.3)
-        ax.set_zlim(0, 0.4)
+        ax.set_xlim(SIMULATION_PLOT_LIMITS['x'])
+        ax.set_ylim(SIMULATION_PLOT_LIMITS['y'])
+        ax.set_zlim(SIMULATION_PLOT_LIMITS['z'])
         plt.legend()
         plt.title("Gémeo Digital: Braço Robótico + Sistema de Visão")
         plt.show(block=True)
@@ -73,7 +76,7 @@ if __name__ == "__main__":
     sim = DigitalTwinSimulator()
 
     # Atualizar pose do braço e do carro
-    sim.update_arm([0, np.pi/6, -np.pi/6])
+    sim.update_arm(INITIAL_ARM_ANGLES_RAD)
     sim.update_from_vision({'car': np.array([[1, 0, 0, 0.3], [0, 1, 0, 0.1], [0, 0, 1, 0], [0, 0, 0, 1]])})
     sim.update_from_vision({'home': np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])})
     sim.update_from_vision({'dropoff': np.array([[1, 0, 0, 0.2], [0, 1, 0, -0.2], [0, 0, 1, 0], [0, 0, 0, 1]])})

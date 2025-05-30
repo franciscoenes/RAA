@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import glob
+from config import CAMERA_PARAMS_FILE
 
 # Tamanho interior do tabuleiro de Xadrez (Numero de cantos internos onde as linhas do tabuleiro se cruzam)
 chessboard_size = (9, 6)
@@ -50,4 +51,4 @@ print("Matriz da camera:\n", camera_matrix)
 print("Coeficientes de distorcao:\n", dist_coeffs)
 
 # Guarda os parametros calibrados para usar posteriormente
-np.savez("camera_params.npz", K=camera_matrix, D=dist_coeffs)
+np.savez(CAMERA_PARAMS_FILE, K=camera_matrix, D=dist_coeffs)

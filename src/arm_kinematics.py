@@ -1,7 +1,8 @@
 import numpy as np
+from config import LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD
 
 class RobotArmRRR:
-    def __init__(self, link_lengths):
+    def __init__(self, link_lengths=LINK_LENGTHS_METERS):
         # Comprimentos dos elos do braco robotico
         self.l1, self.l2, self.l3 = link_lengths  
 
@@ -88,11 +89,11 @@ class RobotArmRRR:
 
 
 if __name__ == "__main__":
-    # Exemplo com comprimentos dos elos em metros, l1 e a altura da base e l2 e l3 sao segmentos do braco
-    arm = RobotArmRRR(link_lengths=[0.1, 0.15, 0.15])
-
+    # Exemplo usando configurações padrão
+    arm = RobotArmRRR()
+    
     print("=== FwdKin ===")
-    pos = arm.FwdKin([0, np.pi/4, -np.pi/4])
+    pos = arm.FwdKin(INITIAL_ARM_ANGLES_RAD)
     print("Posicao final:", pos)
 
     print("\n=== InvKin ===")
@@ -101,9 +102,9 @@ if __name__ == "__main__":
         print(f"Solução {i+1}: {np.round(s, 4)}")
 
     print("\n=== DiffKin ===")
-    J = arm.DiffKin([0, np.pi/4, -np.pi/4])
+    J = arm.DiffKin(INITIAL_ARM_ANGLES_RAD)
     print("Jacobiano:\n", np.round(J, 4))
 
     print("\n=== InvDiffKin ===")
-    Jinv = arm.InvDiffKin([0, np.pi/4, -np.pi/4])
+    Jinv = arm.InvDiffKin(INITIAL_ARM_ANGLES_RAD)
     print("Jacobiano inverso:\n", np.round(Jinv, 4))
