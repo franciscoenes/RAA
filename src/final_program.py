@@ -1,4 +1,5 @@
-"""Main program for robotic arm control"""
+"""Programa principal para controlo do braço robótico"""
+
 import numpy as np
 import cv2
 from arm_kinematics import RobotArmRRR
@@ -9,188 +10,218 @@ import matplotlib.pyplot as plt
 from arduino_control import ArduinoArmControllerSerial
 from position_utils import calculate_safe_picking_position, get_relative_position
 from config import (
-    SIMULATION_MODE, CAMERA_INDEX, ARDUINO_PORT, ARDUINO_BAUD_RATE,
-    INITIAL_ARM_ANGLES_RAD, HOME_POSITION
+    SIMULATION_MODE,
+    CAMERA_INDEX,
+    ARDUINO_PORT,
+    ARDUINO_BAUD_RATE,
+    INITIAL_ARM_ANGLES_RAD,
+    HOME_POSITION,
 )
 
-# Inicializações
-arm = RobotArmRRR()  # Using default config values
-planner = TrajectoryPlanner()  # Using default config values
-simulator = DigitalTwinSimulator()
-vision = VisionSystem()  # Using default config values
+# Inicialização dos componentes principais do sistema
+arm = RobotArmRRR()  # Inicializa o modelo cinemático do braço
+planner = TrajectoryPlanner()  # Inicializa o planeador de trajetórias
+simulator = DigitalTwinSimulator()  # Inicializa o simulador
+vision = VisionSystem()  # Inicializa o sistema de visão
 
-# Set up controllers
+# Configuração do controlador do braço
 planner.set_arm_controller(arm)
 
-# FIXED: Initialize vision system attributes to prevent AttributeError
+# Inicialização dos atributos do sistema de visão para evitar erros de atributos
 vision.last_transforms = {}
 vision.last_home_distance = 0.0
 vision.last_is_at_home = False
 vision.last_status = "Aguardando"
 vision.last_color = (255, 255, 255)
 
-# Global simulation variables
+# Variáveis globais para a simulação
 current_angles = INITIAL_ARM_ANGLES_RAD
 
+
 def send_to_real_robot(joint_angles_rad):
-    """Send angles to robot - now with Arduino support for base rotation"""
+    """
+    Envia os ângulos das juntas para o robô físico ou simulado.
+    Inclui suporte para controlo da base através do Arduino.
+    Parâmetros:
+        joint_angles_rad: Lista com os ângulos das juntas em radianos
+    """
     if SIMULATION_MODE:
         simulator.update_arm(joint_angles_rad)
-        
-        # If Arduino is connected, send base angle
-        if hasattr(send_to_real_robot, 'arduino_controller') and send_to_real_robot.arduino_controller:
+
+        # Se o Arduino estiver ligado, envia o ângulo da base
+        if (
+            hasattr(send_to_real_robot, "arduino_controller")
+            and send_to_real_robot.arduino_controller
+        ):
             send_to_real_robot.arduino_controller.send_to_robot(joint_angles_rad)
     else:
-        print(f"[REAL] Sending angles: {np.degrees(joint_angles_rad)}")
+        print(f"[REAL] A enviar ângulos: {np.degrees(joint_angles_rad)}")
 
-# Set the robot controller in the planner
+
+# Define o controlador do robô no planeador
 planner.set_robot_controller(send_to_real_robot)
+
 
 def main():
     global current_angles
-    
+
     print("==============================")
     print(" SISTEMA DE PICK AND PLACE")
     print("==============================")
     print(f"Modo: Simulação")
-    
-    # Try to initialize Arduino connection
+
+    # Tentativa de inicialização da ligação com o Arduino
     try:
-        arduino_controller = ArduinoArmControllerSerial(port=ARDUINO_PORT, baud_rate=ARDUINO_BAUD_RATE)
+        arduino_controller = ArduinoArmControllerSerial(
+            port=ARDUINO_PORT, baud_rate=ARDUINO_BAUD_RATE
+        )
         if arduino_controller.serial_connection:
-            print("✅ Arduino conectado com sucesso! Base física será controlada.")
+            print("✅ Arduino conectado com sucesso! A base física será controlada.")
             send_to_real_robot.arduino_controller = arduino_controller
         else:
-            print("⚠️ Arduino não conectado. Continuando apenas com simulação.")
+            print("⚠️ Arduino não conectado. A continuar apenas com simulação.")
             send_to_real_robot.arduino_controller = None
     except Exception as e:
-        print(f"⚠️ Erro ao conectar com Arduino: {e}")
-        print("Continuando apenas com simulação.")
+        print(f"⚠️ Erro ao conectar com o Arduino: {e}")
+        print("A continuar apenas com simulação.")
         send_to_real_robot.arduino_controller = None
 
-    # Initialize simulation
+    # Inicialização do ambiente de simulação
     try:
         simulator.initialize_simulation()
-        print("✅ Simulação inicializada com sucesso")
+        print("✅ Simulação iniciada com sucesso")
     except Exception as e:
         print(f"⚠️ Erro na inicialização da simulação: {e}")
-    
-    # Configure camera window
-    cv2.namedWindow("Vision System", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Vision System", 800, 600)
-    
-    # Initialize camera
+
+    # Configuração da janela de visualização do sistema de visão
+    cv2.namedWindow("Sistema de Visão", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Sistema de Visão", 800, 600)
+
+    # Inicialização da câmara
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
-        print("❌ Erro: Não foi possível abrir a câmera")
+        print("❌ Erro: Não foi possível iniciar a câmara")
         return
-    
+
     current_angles = INITIAL_ARM_ANGLES_RAD
-    state = "WAITING_FOR_CAR"
-    
-    # Send initial position to simulation and Arduino
+    state = "WAITING_FOR_CAR"  # Estado inicial: à espera do carro
+
+    # Envio da posição inicial para a simulação e Arduino
     send_to_real_robot(current_angles)
-    
-    print(f"\nPosicione o carro entre {vision.HOME_MIN_THRESHOLD*100:.1f}cm e {vision.HOME_MAX_THRESHOLD*100:.1f}cm do ponto Home")
-    
+
+    print(
+        f"\nPosicione o carro entre {vision.HOME_MIN_THRESHOLD*100:.1f}cm e {vision.HOME_MAX_THRESHOLD*100:.1f}cm do ponto inicial"
+    )
+
     try:
         while True:
-            # Capture frame
+            # Captura de uma frame da câmara
             ret, frame = cap.read()
             if not ret:
-                print("❌ Erro: Não foi possível ler o frame da câmera")
+                print("❌ Erro: Não foi possível capturar imagem da câmara")
                 break
 
-            # Process vision - using original VisionSystem methods
-            detected = vision.detect_markers(frame)
-            transforms = vision.get_transforms(detected)
+            # Processamento do sistema de visão
+            detected = vision.detect_markers(frame)  # Deteção dos marcadores ArUco
+            transforms = vision.get_transforms(detected)  # Cálculo das transformações
             vision.last_transforms = transforms
-            vision.is_car_at_home(transforms)
-            vision.draw_status_overlay(frame)
-            
-            # Update simulation markers
+            vision.is_car_at_home(transforms)  # Verificação da posição do carro
+            vision.draw_status_overlay(frame)  # Desenho das informações no ecrã
+
+            # Atualização dos marcadores na simulação
             simulator.update_from_vision(transforms)
-            
-            # State machine
+
+            # Máquina de estados do sistema
             if state == "WAITING_FOR_CAR":
                 if vision.is_car_at_home(transforms):
-                    print("\n✅ Carro detectado na posição Home!")
+                    print("\n✅ Carro detetado na posição inicial!")
                     state = "PICKING"
-                    
-                    # Get car position relative to home marker
+
+                    # Cálculo da posição do carro relativamente ao marcador inicial
                     car_pos_cm = get_relative_position(
-                        vision.last_transforms['home'],
-                        vision.last_transforms['car']
+                        vision.last_transforms["home"], vision.last_transforms["car"]
                     )
-                    
-                    # Calculate safe picking position
+
+                    # Cálculo da posição segura para recolha
                     picking_pos = calculate_safe_picking_position(car_pos_cm)
-                    print(f"\n🎯 Posição de picking calculada: {np.round(picking_pos, 1)}cm")
-                    
-                    # Move to picking position
-                    success, current_angles = planner.move_through_safe_path(picking_pos, current_angles)
+                    print(
+                        f"\n🎯 Posição de recolha calculada: {np.round(picking_pos, 1)}cm"
+                    )
+
+                    # Movimento para a posição de recolha
+                    success, current_angles = planner.move_through_safe_path(
+                        picking_pos, current_angles
+                    )
                     if not success:
-                        print("❌ Falha ao mover para posição de picking")
+                        print("❌ Falha no movimento para a posição de recolha")
                         state = "WAITING_FOR_CAR"
                     else:
-                        print("✅ Braço na posição de picking")
+                        print("✅ Braço na posição de recolha")
                         state = "WAITING_FOR_DROPOFF"
-            
+
             elif state == "WAITING_FOR_DROPOFF":
-                if 'dropoff' in transforms:
-                    print("\n✅ Marcador de dropoff detectado!")
-                    
-                    # Get dropoff position relative to home marker
+                if "dropoff" in transforms:
+                    print("\n✅ Marcador de descarga detetado!")
+
+                    # Cálculo da posição de descarga relativamente ao marcador inicial
                     dropoff_pos_cm = get_relative_position(
-                        vision.last_transforms['home'],
-                        vision.last_transforms['dropoff']
+                        vision.last_transforms["home"],
+                        vision.last_transforms["dropoff"],
                     )
-                    
-                    # Calculate safe dropoff position
+
+                    # Cálculo da posição correta para descarga
                     dropoff_pos = calculate_safe_picking_position(dropoff_pos_cm)
-                    print(f"\n🎯 Posição de dropoff calculada: {np.round(dropoff_pos, 1)}cm")
-                    
-                    # Move to dropoff position
-                    success, current_angles = planner.move_through_safe_path(dropoff_pos, current_angles)
+                    print(
+                        f"\n🎯 Posição de descarga calculada: {np.round(dropoff_pos, 1)}cm"
+                    )
+
+                    # Movimento para a posição de descarga
+                    success, current_angles = planner.move_through_safe_path(
+                        dropoff_pos, current_angles
+                    )
                     if not success:
-                        print("❌ Falha ao mover para posição de dropoff")
+                        print("❌ Falha no movimento para a posição de descarga")
                     else:
-                        print("✅ Movimento concluído")
-                    
-                    # Return to initial position
-                    print("\n🔄 Retornando à posição inicial...")
+                        print("✅ Movimento concluído com sucesso")
+
+                    # Retorno à posição inicial
+                    print("\n🔄 A retornar à posição inicial...")
                     success, current_angles = planner.move_through_safe_path(
                         HOME_POSITION, current_angles
                     )
                     if success:
-                        print("✅ Retorno concluído")
+                        print("✅ Retorno concluído com sucesso")
                     else:
                         print("⚠️ Falha no retorno à posição inicial")
-                    
+
                     state = "WAITING_FOR_CAR"
-            
-            # Show frame
-            cv2.imshow("Vision System", frame)
-            
-            # Check for key press
+
+            # Apresentação da imagem do sistema de visão
+            cv2.imshow("Sistema de Visão", frame)
+
+            # Verificação de teclas pressionadas
             key = cv2.waitKey(1)
-            if key == ord('q'):
-                print("\n👋 Encerrando sistema...")
+            if key == ord("q"):
+                print("\n👋 A encerrar o sistema...")
                 break
-            elif key == ord('r'):
-                print("\n🔄 Resetando sistema...")
+            elif key == ord("r"):
+                print("\n🔄 A reiniciar o sistema...")
                 state = "WAITING_FOR_CAR"
                 current_angles = INITIAL_ARM_ANGLES_RAD
                 send_to_real_robot(current_angles)
-    
+
     finally:
-        print("🧹 Limpando recursos...")
-        # Close Arduino connection if it exists
-        if hasattr(send_to_real_robot, 'arduino_controller') and send_to_real_robot.arduino_controller:
+        print("🧹 A libertar recursos...")
+        # Fecha a ligação com o Arduino, se existir
+        if (
+            hasattr(send_to_real_robot, "arduino_controller")
+            and send_to_real_robot.arduino_controller
+        ):
             send_to_real_robot.arduino_controller.close()
         cap.release()
-        cv2.destroyAllWindows()
-        plt.close('all')
+        cv2.destroyAllWindows()  # Fecha todas as janelas
+        plt.close("all")  # Fecha todos os gráficos
+
 
 if __name__ == "__main__":
     main()

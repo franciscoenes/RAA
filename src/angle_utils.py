@@ -1,5 +1,6 @@
-"""Utility functions for angle operations"""
+"""Funções utilitárias para operações com ângulos"""
+
 
 def normalize_angle(angle):
-    """Normalize angle to be between -180 and 180 degrees"""
-    return ((angle + 180) % 360) - 180 
+    """Normaliza um ângulo para o intervalo entre -180 e 180 graus, garantindo uma representação consistente"""
+    return ((angle + 180) % 360) - 180
