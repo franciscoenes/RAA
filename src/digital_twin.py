@@ -75,6 +75,8 @@ if __name__ == "__main__":
     # Atualizar pose do braço e do carro
     sim.update_arm([0, np.pi/6, -np.pi/6])
     sim.update_from_vision({'car': np.array([[1, 0, 0, 0.3], [0, 1, 0, 0.1], [0, 0, 1, 0], [0, 0, 0, 1]])})
+    sim.update_from_vision({'home': np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])})
+    sim.update_from_vision({'dropoff': np.array([[1, 0, 0, 0.2], [0, 1, 0, -0.2], [0, 0, 1, 0], [0, 0, 0, 1]])})
 
     # Mostrar simulação
     sim.show()
