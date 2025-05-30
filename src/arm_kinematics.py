@@ -1,5 +1,6 @@
 import numpy as np
-from config import LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD
+from config import LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD, WORKSPACE_LIMITS, JOINT_LIMITS_DEG
+from angle_utils import normalize_angle
 
 class RobotArmRRR:
     def __init__(self, link_lengths=LINK_LENGTHS_METERS):
@@ -87,6 +88,81 @@ class RobotArmRRR:
             raise ValueError("Jacobiano singular (nao inversivel)")
         return np.linalg.inv(J)
 
+    def get_best_ik_solution(self, solutions, current_angles):
+        """Choose the best IK solution based on joint limits"""
+        if not solutions:
+            return None
+        
+        current_angles = np.array(current_angles)
+        joint_limits_deg = np.array([
+            [-90, 90],   # Base limits
+            [-90, 90],   # Shoulder limits
+            [-90, 90]    # Elbow limits
+        ])
+        
+        # Filter solutions within joint limits
+        valid_solutions = []
+        print("\n🔍 Soluções IK encontradas:")
+        for i, sol in enumerate(solutions):
+            angles_deg = np.degrees(sol)
+            print(f"Solução {i+1}: Base={angles_deg[0]:.1f}°, Shoulder={angles_deg[1]:.1f}°, Elbow={angles_deg[2]:.1f}°")
+            
+            is_valid = True
+            for j, (angle_deg, (min_deg, max_deg)) in enumerate(zip(angles_deg, joint_limits_deg)):
+                norm_angle = normalize_angle(angle_deg)
+                if norm_angle < min_deg or norm_angle > max_deg:
+                    is_valid = False
+                    break
+            if is_valid:
+                valid_solutions.append(sol)
+        
+        if valid_solutions:
+            print(f"✅ {len(valid_solutions)} soluções válidas encontradas")
+            # Choose solution with minimum angle change
+            best_sol = None
+            min_cost = float('inf')
+            for sol in valid_solutions:
+                angle_change_cost = np.sum(np.abs(sol - current_angles))
+                if angle_change_cost < min_cost:
+                    min_cost = angle_change_cost
+                    best_sol = sol
+            return best_sol
+        
+        print("❌ Nenhuma solução válida dentro dos limites das juntas")
+        return None
+
+    def is_position_reachable(self, target_pos_cm, current_angles):
+        """Check if a position is reachable by the arm with IK validation"""
+        xy_distance = np.sqrt(target_pos_cm[0]**2 + target_pos_cm[1]**2)
+        
+        # Check workspace limits first
+        if xy_distance < WORKSPACE_LIMITS['xy_min']:
+            print(f"❌ Posição muito próxima da base: {xy_distance:.1f}cm < {WORKSPACE_LIMITS['xy_min']:.1f}cm")
+            return False
+        
+        if xy_distance > WORKSPACE_LIMITS['xy_max']:
+            print(f"❌ Posição muito distante: {xy_distance:.1f}cm > {WORKSPACE_LIMITS['xy_max']:.1f}cm")
+            return False
+        
+        if target_pos_cm[2] < WORKSPACE_LIMITS['z_min'] or target_pos_cm[2] > WORKSPACE_LIMITS['z_max']:
+            print(f"❌ Altura fora dos limites: {target_pos_cm[2]:.1f}cm")
+            return False
+        
+        # Test with inverse kinematics
+        target_pos_m = np.array(target_pos_cm) / 100.0
+        solutions = self.InvKin(target_pos_m)
+        
+        if not solutions:
+            print(f"❌ Posição geometricamente inatingível: {target_pos_cm}")
+            return False
+        
+        # Check if any solution is within joint limits
+        best_solution = self.get_best_ik_solution(solutions, current_angles)
+        if best_solution is not None:
+            return True
+        
+        print(f"❌ Posição fora dos limites das juntas: {target_pos_cm}")
+        return False
 
 if __name__ == "__main__":
     # Exemplo usando configurações padrão
