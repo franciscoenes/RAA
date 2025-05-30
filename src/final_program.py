@@ -1,22 +1,16 @@
 """Main program for robotic arm control"""
 import numpy as np
-import time
 import cv2
 from arm_kinematics import RobotArmRRR
 from trajectory_planner import TrajectoryPlanner
 from digital_twin import DigitalTwinSimulator
 from vision_system import VisionSystem
 import matplotlib.pyplot as plt
-from spatialmath import SE3
 from arduino_control import ArduinoArmControllerSerial
 from position_utils import calculate_safe_picking_position, get_relative_position
-from angle_utils import normalize_angle
 from config import (
-    SIMULATION_MODE, CAMERA_INDEX, MARKER_SIZE_CM, CAMERA_HEIGHT_CM,
-    VISION_SCALE_FACTOR, ARDUINO_PORT, ARDUINO_BAUD_RATE,
-    INITIAL_ARM_ANGLES_RAD, LINK_LENGTHS_METERS, WORKSPACE_LIMITS,
-    HOME_POSITION, CAMERA_PARAMS_FILE, SIMULATION_PLOT_LIMITS,
-    TRAJECTORY_DT
+    SIMULATION_MODE, CAMERA_INDEX, ARDUINO_PORT, ARDUINO_BAUD_RATE,
+    INITIAL_ARM_ANGLES_RAD, HOME_POSITION
 )
 
 # Inicializações

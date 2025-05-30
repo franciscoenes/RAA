@@ -1,5 +1,5 @@
 import numpy as np
-from config import LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD, WORKSPACE_LIMITS, JOINT_LIMITS_DEG
+from config import LINK_LENGTHS_METERS, INITIAL_ARM_ANGLES_RAD, WORKSPACE_LIMITS
 from angle_utils import normalize_angle
 
 class RobotArmRRR:
