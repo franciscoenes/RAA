@@ -85,6 +85,16 @@ class ArduinoArmControllerSerial:
             except Exception as e:
                 print(f"❌ Error sending base angle over serial: {e}")
 
+    def send_to_robot(self, joint_angles_rad):
+        """Send angles to robot with Arduino support for base rotation"""
+        try:
+            # Convert base angle from radians to degrees
+            base_angle_deg = np.degrees(joint_angles_rad[0])
+            print(f"🔄 Ângulo base (rad): {joint_angles_rad[0]:.3f}, (graus): {base_angle_deg:.1f}°")
+            self.set_joint_angles_deg({'base': base_angle_deg})
+        except Exception as e:
+            print(f"⚠️ Warning: Could not send angle to Arduino: {e}")
+
     def close(self):
         """
         Close the serial connection.
